@@ -1,0 +1,103 @@
+## GTalign command-line options
+##
+
+## Output control options:
+##
+# Report results down to this TM-score limit [0,1).     [0,1)
+# 0 implies all results are valid for report.
+-s=0.5
+
+# Include secondary TM-score, 2TM-score: TM-score       (On|Off)
+# calculated over matched secondary structures.
+# Default=Off
+--2tm-score
+
+# 0: Sort results by the greater TM-score of the two;   [0-8]
+# 1: Sort by reference length-normalized TM-score;
+# 2: Sort by query length-normalized TM-score;
+# 3: Sort by the harmonic mean of the two TM-scores;
+# 4: Sort by RMSD.
+# When --2tm-score is present:
+# 5: Sort by the greater 2TM-score;
+# 6: Sort by reference length-normalized 2TM-score;
+# 7: Sort by query length-normalized 2TM-score.
+# 8: Sort by the harmonic mean of the 2TM-scores;
+--sort=2
+
+# Number of highest-scoring structures to list in       [1,10000]
+# the results for each query.
+--nhits=2000
+
+# Number of highest-scoring structure alignments        [1,10000]
+# and superpositions to output for each query.
+--nalns=2000
+
+# Remove deletion positions (gaps in query) from        (On|Off)
+# produced alignments. Default=Off
+#--no-deletions
+
+# Produce transformation matrices for reference         (On|Off)
+# structures instead of query(-ies). Default=On
+--referenced
+
+
+## Interpretation options:
+##
+# Consider and align both ATOM and HETATM residues.     (On|Off)
+# Default=On
+--hetatm
+
+## Similarity pre-screening options:
+##
+# Minimum pairwise sequence similarity score [0,)       [0.0,100.0]
+# for conducting structure comparison. Values >=10
+# start taking considerable effect on speed.
+# 0, all pairs are subject to further processing.
+--pre-similarity=0.0
+
+# Minimum provisional TM-score [0,1) for structure      [0,1)
+# pairs to proceed to further stages.
+# 0, all pairs are subject to further processing.
+--pre-score=0.4
+
+
+## Per-pair computation options:
+##
+# Include superposition search by a combination of      (On|Off)
+# secondary structure and sequence similarity, which
+# helps optimization for some pairs. Default=On
+--add-search-by-ss
+
+# Speed up the GTalign alignment algorithm at the       [0-13]
+# expense of optimality (larger values => faster);
+# Accuracy most affected at these values: 0,1,4,7,10,13
+--speed=13
+
+
+## HPC options:
+##
+# Maximum length [100,65535] for reference              [100,65535]
+# structures. References of length larger than this
+# specified value will be skipped.
+# NOTE: Large values greatly reduce #structure pairs
+# processed in parallel.
+--dev-max-length=4000
+
+# Minimum length [3,32767] for reference structures.    [3,32767]
+# References shorter than this specified value will
+# be skipped.
+--dev-min-length=20
+
+
+
+
+
+
+
+## -------------------------------------------------------------------
+## GTalign web service options
+##
+
+## GTalign structure database
+gtalign_db = mmCIF
+
