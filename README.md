@@ -5,7 +5,7 @@ implementation of [GTalign](https://github.com/minmarg/gtalign_alpha), a
 spatial index-driven protein structure alignment tool. 
 The computational backend module is provided here.
 
-# Citing GTalign-web
+## Citing GTalign-web
 
 Margelevicius, M. GTalign: spatial index-driven protein structure alignment, 
 superposition, and search. Nat Commun 15, 7305 (2024). 
@@ -28,16 +28,17 @@ https://doi.org/10.1038/s41467-024-51669-z
 }
 ```
 
-# License
+## Contacts
+
+For any inquiries, please contact Mindaugas Margelevicius at
+[mindaugas.margelevicius@bti.vu.lt](mailto:mindaugas.margelevicius@bti.vu.lt).
+
+## License
 
 GTalign-web's backend is licensed under GNU General Public License version 3. 
 Please find the LICENSE and COPYING files included in the software package.
 
-# Funding
+## Funding
 
 The work was supported by the Research Council of Lithuania (LMTLT; grant S-MIP-23-104).
-
----
-
-Contact: <mindaugas.margelevicius@bti.vu.lt>
 
