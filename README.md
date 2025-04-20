@@ -40,5 +40,6 @@ Please find the LICENSE and COPYING files included in the software package.
 
 ## Funding
 
-The work was supported by the Research Council of Lithuania (LMTLT; grant S-MIP-23-104).
+The work was supported by the Research Council of Lithuania (LMTLT; 
+grant S-MIP-23-104) and an NVIDIA Academic Grant.
 
