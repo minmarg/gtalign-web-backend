@@ -38,6 +38,7 @@ sub new {
     ##(use a large number for serialization with multiple cores)
     $self->{MAXNQUERIES_multicore} = 6;
     $self->{MAXNQUERIES} = 100;##maximum number of queries allowed in the input
+    $self->{MAXSZINPUT} = 2097152;##maximum input file size (2MB by default)
 
     $self->{MAXSTRLENGTALIGN} = 9999;##maximum structure length for GTalign
 
@@ -191,6 +192,7 @@ sub CheckConfig
     my  $self = shift;
     my  $mysubname = (caller(0))[3];
     my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
+    my  $inpsize = 0;
 
     $self->{cfgvar} = readcfg->new($self->{CFGFILE});##backend configuration object
 
@@ -203,6 +205,12 @@ sub CheckConfig
         }
     }
 
+    if($self->{cfgvar}->JobMaxSizeInput() < 1) {
+        print(STDERR "WARNING: $self->{MYPROGNAME}: Maximum input file size not given; ".
+              "it has been set to: '$self->{MAXSZINPUT}'\n");
+    } else {
+        $self->{MAXSZINPUT} = $self->{cfgvar}->JobMaxSizeInput();
+    }
 
     unless(-d $self->{cfgvar}->PathStrDb_PDB()) {
         $self->Error("ERROR: $self->{MYPROGNAME}: Database directory not found: '".$self->{cfgvar}->PathStrDb_PDB()."'\n",
@@ -491,6 +499,15 @@ sub VerifyOptionValues
     unless($self->{NORUN}) {
         ##if( $self->{METHOD} eq 'gtalign')
         {
+            my $inpsize = 0;
+            $inpsize = (-s $self->{INPFILENAME}) if(-f $self->{INPFILENAME});
+            if($self->{MAXSZINPUT} < $inpsize) {
+                $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: ".
+                    "Too large input file size: '$self->{INPFILENAME}': $inpsize\n";
+                $$rhlerrmsg = "Input file exceeds maximum allowed size.\n";
+                return 0;
+            }
+
             unless($self->{options}->Exists($self->{optionkeys}->{gtalign_db})) {
                 $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: ".
                     "Option $self->{optionkeys}->{gtalign_db} not specified in the job options file.\n";

@@ -36,6 +36,7 @@ sub new {
 
     $self->{JOB_NUM_CPUS} = 1;
     $self->{JOB_MAX_NQUERIES} = 1;
+    $self->{JOB_MAX_SZINPUT} = 1048576; ##1MB
 
     $self->{PATHSTRDB_PDB} = '';
     $self->{PATHSTRDB_SCOP} = '';
@@ -72,6 +73,7 @@ sub WebAddr3dDb_ECOD { my $self = shift; if (@_) { $self->{WEBECODPDB} = shift }
 sub WebAddr3dDb_AF { my $self = shift; if (@_) { $self->{WEBAFPDB} = shift } return $self->{WEBAFPDB}; }
 
 sub JobMaxNoQueries { my $self = shift; if (@_) { $self->{JOB_MAX_NQUERIES} = shift } return $self->{JOB_MAX_NQUERIES}; }
+sub JobMaxSizeInput { my $self = shift; if (@_) { $self->{JOB_MAX_SZINPUT} = shift } return $self->{JOB_MAX_SZINPUT}; }
 
 sub PathStrDb_PDB { my $self = shift; if (@_) { $self->{PATHSTRDB_PDB} = shift } return $self->{PATHSTRDB_PDB}; }
 sub PathStrDb_SCOP { my $self = shift; if (@_) { $self->{PATHSTRDB_SCOP} = shift } return $self->{PATHSTRDB_SCOP}; }
