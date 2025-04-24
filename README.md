@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/944991311.svg)](https://doi.org/10.5281/zenodo.15276060)
+
 # GTalign-web backend
 
 [GTalign-web](https://bioinformatics.lt/comer/gtalign) is a web-based 
