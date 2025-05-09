@@ -460,6 +460,8 @@ sub AddFileToArchive
     my  $opt = $create?'c':'r';
     my  $ret = 1;
 
+    $filepathname =~ s/"/\\"/g;
+
     if($dirname) {
         $command = "$self->{TARPROG} -${opt}f \"${archive}\" -C \"${dirname}\" \"${filepathname}\"";
     }
@@ -618,12 +620,12 @@ sub GenGTalignHPCqueryOptions
         return 0;
     }
 
-    my  $cress = `python3 $self->{GETCHAINprog} -i $self->{INPFILENAME}`;
+    my  $cress = `python3 $self->{GETCHAINprog} -i "$self->{INPFILENAME}"`;
     my ($maxlen0, $maxlen1, $maxlens, @lens) = (0,0,0);
     my ($ncif, $npdb) = (0,0);
     ##no error check
     foreach(split(/\n/, $cress)) {
-        if(/^D:\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)/) {
+        if(/^D:\s+"([^"]+)"\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)/) {
             my ($lcfile, $lcname, $lcchain, $lclength, $lcmodel) = ($1,$2,$3,$4,$5);
             push(@lens, $lclength);
             if($lcname =~ /^None$/i) {$ncif++} else {$npdb++}

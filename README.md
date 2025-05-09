@@ -9,6 +9,24 @@ The computational backend module is provided here.
 
 ## Citing GTalign-web
 
+Dapkunas, J., Margelevicius, M. Web-based GTalign: bridging speed and accuracy in 
+protein structure analysis. Nucleic Acids Res, gkaf398 (2025). 
+https://doi.org/10.1093/nar/gkaf398
+
+```bibtex
+@article{10.1093/nar/gkaf398,
+    author = {Dapk{\={u}}nas, Justas and Margelevi{\v{c}}ius, Mindaugas},
+    title = {Web-based {GTalign}: bridging speed and accuracy in protein structure analysis},
+    journal = {Nucleic Acids Research},
+    pages = {gkaf398},
+    year = {2025},
+    month = {05},
+    issn = {1362-4962},
+    doi = {10.1093/nar/gkaf398},
+    url = {https://doi.org/10.1093/nar/gkaf398}
+}
+```
+
 Margelevicius, M. GTalign: spatial index-driven protein structure alignment, 
 superposition, and search. Nat Commun 15, 7305 (2024). 
 https://doi.org/10.1038/s41467-024-51669-z

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 import sys, os, io
 import tarfile, gzip
 from Bio import PDB
@@ -98,6 +99,7 @@ if __name__ == "__main__":
         with tarfile.open(options.input,'r') as tfo:
             for tfentry in tfo.getmembers():
                 tfentn = tfentry.name
+                tfentnmod = re.sub(r'[^\sa-zA-Z0-9_+-]', '_', tfentn)
                 tfebname, tfeextn0 = os.path.splitext(os.path.basename(tfentn))
                 tfebnam2, tfeextn1 = os.path.splitext(os.path.basename(tfebname))
                 code, structure = GetStructure(tfo, tfentry, tfeextn0, options.input + ':' + tfentn)
@@ -107,16 +109,18 @@ if __name__ == "__main__":
                 for model in structure.get_models():
                     for chain in model.get_chains():
                         length = len([_ for _ in chain.get_residues() if PDB.is_aa(_,standard=False)])
-                        print(f'D:  {tfentn}  {pdbcode}  {chain.id}  {length}  {model.serial_num}')
+                        print(f'D:  "{tfentnmod}"  {pdbcode}  {chain.id}  {length}  {model.serial_num}')
 
     else:
         code, structure = GetStructure(None, options.input, extension, options.input)
 
     if code and not extension == '.tar':
         pdbcode = structure.header.get('idcode')
+        basenamemod = re.sub(r'[^\sa-zA-Z0-9_+-]', '_', basename)
         if pdbcode == '': pdbcode = '_'
         for model in structure.get_models():
             for chain in model.get_chains():
                 length = len([_ for _ in chain.get_residues() if PDB.is_aa(_,standard=False)])
-                print(f'D:  {basename}  {pdbcode}  {chain.id}  {length}  {model.serial_num}')
+                print(f'D:  "{basenamemod}"  {pdbcode}  {chain.id}  {length}  {model.serial_num}')
+
 
