@@ -64,7 +64,7 @@ def ParseArguments():
 
     (options, args) = parser.parse_args()
 
-    if not options.file1[0] or not os.path.isfile(options.file1[0]):
+    if options.save1 and not (options.file1[0] and os.path.isfile(options.file1[0])):
         sys.stderr.write("E: First input file not found: " + options.file1[0] + "\n")
         sys.exit(1)
 
@@ -310,9 +310,10 @@ def PrintHeader(fh, header):
 if __name__ == "__main__":
     options = ParseArguments()
 
-    code = 0
+    code = 1
 
-    code, chain1, header1 = GetStructureModelChain(options.file1, options.cid1, options.mod1)
+    if options.save1:
+        code, chain1, header1 = GetStructureModelChain(options.file1, options.cid1, options.mod1)
 
     if not code: sys.exit(1)
 
@@ -327,7 +328,7 @@ if __name__ == "__main__":
         ##print(rot.astype(np.float32));print(trl.astype(np.float32))
         if options.referenced:
             for atom in chain2.get_atoms(): atom.transform(rot.astype(np.float32), trl.astype(np.float32))
-        else:
+        elif options.save1:
             for atom in chain1.get_atoms(): atom.transform(rot.astype(np.float32), trl.astype(np.float32))
 
     builder = PDB.StructureBuilder.StructureBuilder()
@@ -336,7 +337,7 @@ if __name__ == "__main__":
 
     outstr = builder.get_structure()
 
-    chain1.id = 'A'
+    if options.save1: chain1.id = 'A'
     chain2.id = 'B'
 
     if options.save1: outstr[0].add(chain1)

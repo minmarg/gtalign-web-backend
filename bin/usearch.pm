@@ -304,7 +304,7 @@ sub ValidateOptionsFile
         elsif(/^\s*(--nhits)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 1, 10000, 2000); }
         elsif(/^\s*(--nalns)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 1, 10000, 2000); }
         elsif(/^\s*(--pre\-similarity)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0.0, 100.0, 0.0); }
-        elsif(/^\s*(--pre\-score)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0.0, 0.999, 0.4); }
+        elsif(/^\s*(--pre\-score)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0.3, 0.999, 0.4); }
         elsif(/^\s*(--speed)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0, 13, 13); }
         ##NOTE: Do not permit changing length limits, as this invalidates caching:
         ##elsif(/^\s*(--dev\-max\-length)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 100, 65535, 4000); $self->{gtalign_set_options}->{dev_max_length} = $2; }

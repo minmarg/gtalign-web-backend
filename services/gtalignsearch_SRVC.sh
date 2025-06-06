@@ -6,8 +6,10 @@
 dirname="$(dirname $0)"
 [[ "${dirname:0:1}" != "/" ]] && dirname="$(pwd)/$dirname"
 basename="$(basename $0)"
+username="$(whoami)"
 SUBPROG="$(which sbatch 2>/dev/null)"
 SINFOPROG="$(which sinfo 2>/dev/null)"
+SQUEUEPROG="$(which squeue 2>/dev/null)"
 
 usage="
 Submit a gtalign search job to a workload manager's queue.
@@ -163,6 +165,13 @@ if [ -z "$fail" ]; then
   fi
 fi
 
+if [[ -n "${username}" && -n "${SQUEUEPROG}" ]]; then
+  ##NOTE: this is a temporary solution when other users have in the queue jobs
+  ##NOTE: running on one cpu (#total cpus is not divisble by #gpus)
+  ntotjobs=$(${SQUEUEPROG} -h -O username|uniq|grep -vE "${username}"|wc -l)
+  if [ ${ntotjobs} -gt 0 ]; then ((ncpus++)); fi
+fi
+
 if [ -n "$fail" ]; then
   echo -e "$fail" >$errfile
   echo -e "ERROR: The server's backend issue: Invalid data.\n\n1" >>"${errorfile}"
@@ -175,6 +184,7 @@ cmd="echo Submitting... >>\"${statusfile}\""
 eval "${cmd}"
 
 mem=10240 ##10GB
+##ncpus=20 ##!!##
 
 ## set the maximum execution time to 1 day
 ##
