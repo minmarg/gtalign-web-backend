@@ -178,6 +178,7 @@ def GetStructureModelChain(fnamelst, chainid, modelnum):
             model = structure.get_list()[0] #1st model
         if chainid:
             for chn in model.get_chains():
+                ##print(chn.get_id())
                 if chn.get_id() == chainid: chain = chn; break
         else: chain = model.get_list()[0] #1st chain
 

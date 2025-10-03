@@ -1,7 +1,7 @@
 package usearch;
 
-## (C) 2024 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University
-## Package for conducting GTalign engine-powered search given
+## (C) 2024-2025 Mindaugas Margelevicius, Vilnius University
+## Package for conducting GTalign engine-powered search
 
 use strict;
 use Config;
@@ -40,18 +40,21 @@ sub new {
     $self->{MAXNQUERIES} = 100;##maximum number of queries allowed in the input
     $self->{MAXSZINPUT} = 2097152;##maximum input file size (2MB by default)
 
-    $self->{MAXSTRLENGTALIGN} = 9999;##maximum structure length for GTalign
+    $self->{MAXSTRLENGTALIGN} = 65535;##maximum structure length
 
     ($self->{QRYEXT}, $self->{FASEXT}, $self->{AFAEXT}, $self->{PWFEXT},
      $self->{PDBEXT}, $self->{CIFEXT}, $self->{OUTEXT}) = 
        ('qry','fa','afa', 'pwfa','pdb','cif','json');
 
     $self->{cmdline_arguments} = '';
+
     $self->{gtalign_cacheopt} = '';
     $self->{gtalign_def_options}->{dev_queries_per_chunk} = 2;
     $self->{gtalign_def_options}->{dev_queries_total_length_per_chunk} = 4000;
     $self->{gtalign_def_options}->{dev_max_length} = $self->{gtalign_set_options}->{dev_max_length} = 4000;
     $self->{gtalign_def_options}->{dev_min_length} = $self->{gtalign_set_options}->{dev_min_length} = 20;
+
+    $self->{gtcomplex_cacheopt} = '';
 
     $self->{INPFILENAME} = '';
     $self->{OPTFILENAME} = '';
@@ -110,10 +113,20 @@ sub Preinitialize
     my  $self = shift;
     my  $mysubname = (caller(0))[3];
     my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
+    my $suffix;
 
     print(STDERR "\n\n".GetDatetime()."\n\n");
 
-    my $suffix;
+
+    if(($self->{METHOD} ne 'gtalign') &&
+       ($self->{METHOD} ne 'gtcomplex'))
+    {
+        $self->Error("ERROR: $self->{MYPROGNAME}: Unknown method: '".$self->{METHOD}."'\n",
+                "Unknown method.\n");## h-l error message
+        $self->MyExit(1);
+    }
+
+
     ($self->{inpbasename},$self->{inpdirname},$suffix) = fileparse($self->{INPFILENAME}, qr/\.[^.]*/);
     $self->{inpdirname} = File::Spec->rel2abs($self->{inpdirname});
 
@@ -125,17 +138,17 @@ sub Preinitialize
 
     unless($self->{NORUN}) {
         unless($self->{COMLOGFILENAME}) {
-            $self->{COMLOGFILENAME} = File::Spec->catfile($self->{inpdirname},"$self->{inpbasename}__gtalign_out.log");
-            print(STDERR "WARNING: $self->{MYPROGNAME}: Filename for GTalign log mesages not given; ".
+            $self->{COMLOGFILENAME} = File::Spec->catfile($self->{inpdirname},"$self->{inpbasename}__gtrun_out.log");
+            print(STDERR "WARNING: $self->{MYPROGNAME}: Filename for log mesages not given; ".
                   "it has been set to: '$self->{COMLOGFILENAME}'\n");
         }
         unless($self->{RESLSTFILENAME}) {
-            $self->{RESLSTFILENAME} = File::Spec->catfile($self->{inpdirname},"$self->{inpbasename}__gtalign_out.lst");
+            $self->{RESLSTFILENAME} = File::Spec->catfile($self->{inpdirname},"$self->{inpbasename}__gtrun_out.lst");
             print(STDERR "WARNING: $self->{MYPROGNAME}: Filename for a results list not given; ".
                   "it has been set to: '$self->{RESLSTFILENAME}'\n");
         }
         unless($self->{RESULTSFILENAME}) {
-            $self->{RESULTSFILENAME} = File::Spec->catfile($self->{inpdirname},"$self->{inpbasename}__gtalign_out.tar");
+            $self->{RESULTSFILENAME} = File::Spec->catfile($self->{inpdirname},"$self->{inpbasename}__gtrun_out.tar");
             print(STDERR "WARNING: $self->{MYPROGNAME}: Filename for compressed results not given; ".
                   "it has been set to: '$self->{RESULTSFILENAME}'\n");
         }
@@ -242,11 +255,26 @@ sub CheckConfig
                 "Some of the database directories not found.\n");## h-l error message
         $self->MyExit(1);
     }
+    unless(-d $self->{cfgvar}->PathStrDb_BFVD()) {
+        $self->Error("ERROR: $self->{MYPROGNAME}: Database directory not found: '".$self->{cfgvar}->PathStrDb_BFVD()."'\n",
+                "Some of the database directories not found.\n");## h-l error message
+        $self->MyExit(1);
+    }
+    unless(-d $self->{cfgvar}->PathStrDb_ASM()) {
+        $self->Error("ERROR: $self->{MYPROGNAME}: Database directory not found: '".$self->{cfgvar}->PathStrDb_ASM()."'\n",
+                "Some of the database directories not found.\n");## h-l error message
+        $self->MyExit(1);
+    }
 
 
     unless($self->{NORUN}) {
-        unless(-d $self->{cfgvar}->InstallDir_GTalign()) {
+        unless((-d $self->{cfgvar}->InstallDir_GTalign()) || ($self->{METHOD} ne 'gtalign')) {
             $self->Error("ERROR: $self->{MYPROGNAME}: GTalign installation directory not found: '".$self->{cfgvar}->InstallDir_GTalign()."'\n",
+                "Some of the installation directories not found.\n");## h-l error message
+            $self->MyExit(1);
+        }
+        unless((-d $self->{cfgvar}->InstallDir_GTcomplex()) || ($self->{METHOD} ne 'gtcomplex')) {
+            $self->Error("ERROR: $self->{MYPROGNAME}: GTcomplex installation directory not found: '".$self->{cfgvar}->InstallDir_GTcomplex()."'\n",
                 "Some of the installation directories not found.\n");## h-l error message
             $self->MyExit(1);
         }
@@ -255,12 +283,19 @@ sub CheckConfig
 
     ##check particular programs
     $self->{optionvalues}->{prog_gtalign_gtalign} = '';
+    $self->{optionvalues}->{prog_gtcomplex_gtcomplex} = '';
 
 
     unless($self->{NORUN}) {
         $self->{optionvalues}->{prog_gtalign_gtalign} = File::Spec->catfile($self->{cfgvar}->InstallDir_GTalign(),'bin','gtalign');
-        unless(-f $self->{optionvalues}->{prog_gtalign_gtalign}) {
+        unless((-f $self->{optionvalues}->{prog_gtalign_gtalign}) || ($self->{METHOD} ne 'gtalign')) {
             $self->Error("ERROR: $self->{MYPROGNAME}: GTalign executable not found: '".$self->{optionvalues}->{prog_gtalign_gtalign}."'\n",
+                "Incomplete software installed on the system.\n");## h-l error message
+            $self->MyExit(1);
+        }
+        $self->{optionvalues}->{prog_gtcomplex_gtcomplex} = File::Spec->catfile($self->{cfgvar}->InstallDir_GTcomplex(),'bin','gtcomplex');
+        unless((-f $self->{optionvalues}->{prog_gtcomplex_gtcomplex}) || ($self->{METHOD} ne 'gtcomplex')) {
+            $self->Error("ERROR: $self->{MYPROGNAME}: GTcomplex executable not found: '".$self->{optionvalues}->{prog_gtcomplex_gtcomplex}."'\n",
                 "Incomplete software installed on the system.\n");## h-l error message
             $self->MyExit(1);
         }
@@ -283,12 +318,13 @@ sub ValidateHelper
     if(!looks_like_number($optcurvalue) || $optcurvalue < $optminvalue || $optcurvalue > $optmaxvalue) {
         $warn = "\nWARNING: Disallowed values: Option $optname changed: $optcurvalue -> $optdefvalue\n";
         $self->Warning($warn, $warn, 1);##no e-mail
-        $_ = "$optname=$optdefvalue\n";
+        $_ = "$optname=$optdefvalue";
     }
 }
-## validate options file and modify illegal values
+
+## validate options file and modify illegal values for GTalign
 ##
-sub ValidateOptionsFile
+sub ValidateOptionsFileGTalign
 {
     my  $self = shift;
     my  $mysubname = (caller(0))[3];
@@ -331,6 +367,63 @@ sub ValidateOptionsFile
     #close(F);
 }
 
+## validate options file for GTcomplex
+##
+sub ValidateOptionsFileGTcomplex
+{
+    my  $self = shift;
+    my  $mysubname = (caller(0))[3];
+    my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
+    my ($contents, $warn, $value) = ('','',0);
+
+    return unless(open(F, $self->{OPTFILENAME}));
+    while(<F>) {
+        chomp;
+        next if /^\s*#/;
+        if(/^\s*(-s)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0.0, 0.999, 0.5); }
+        elsif(/^\s*(--sort)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0, 8, 0); }
+        elsif(/^\s*(--nhits)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 1, 10000, 1000); }
+        elsif(/^\s*(--nalns)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 1, 10000, 1000); }
+        elsif(/^\s*(--nchns)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0, 10000, 1000); }
+        elsif(/^\s*(--pre\-similarity)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0.0, 100.0, 0.0); }
+        elsif(/^\s*(--pre\-score)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0.3, 0.999, 0.4); }
+        elsif(/^\s*(--speed)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 0, 16, 16); }
+        ##NOTE: Do not permit changing length limits, as this invalidates caching:
+        elsif(/^\s*(--dev\-queries\-max\-per\-chunk)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 1, 2, 1); next; }
+        elsif(/^\s*(--dev\-queries\-max\-chains)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 100, 512, 100); next; }
+        elsif(/^\s*(--dev\-queries\-total\-length\-per\-chunk)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 100, 50000, 4000); next; }
+        elsif(/^\s*(--dev\-max\-length)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 100, 65535, 4000); next; }
+        elsif(/^\s*(--dev\-min\-length)\s*=\s*(\S+)/) { $self->ValidateHelper($1, $2, 3, 32767, 3); next; }
+        s/^\s*(\S+)\s*=\s*(\S+).*$/ $1=$2/;
+        s/^\s*(\S+).*$/ $1/;
+        $contents .= $_ if /^\s*\-/;
+    }
+    close(F);
+
+    $self->{cmdline_arguments} = $contents;
+}
+
+## validate options file and modify illegal values
+##
+sub ValidateOptionsFile
+{
+    my  $self = shift;
+    my  $mysubname = (caller(0))[3];
+    my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
+    my ($contents, $warn, $value) = ('','',0);
+
+    if($self->{METHOD} eq 'gtalign') {
+        $self->ValidateOptionsFileGTalign();
+    }
+    elsif($self->{METHOD} eq 'gtcomplex') {
+        $self->ValidateOptionsFileGTcomplex();
+    }
+    else {
+        $warn = "\nWARNING: Unknown method: Options file unvalidated.\n";
+        $self->Warning($warn, $warn, 1);##no e-mail
+    }
+}
+
 ## =============================================================================
 ## initialize options for the job
 ##
@@ -343,7 +436,8 @@ sub InitializeOptions
     $self->{options} = readopt->new($self->{OPTFILENAME});##options object
     $self->{optionkeys} = {
         job_num_cpus => 'JOB_NUM_CPUS',
-        gtalign_db => 'gtalign_db'
+        gtalign_db => 'gtalign_db',
+        gtcomplex_db => 'gtcomplex_db'
     };
     my  $nsyscpus = $self->GetNCPUs();
     $self->{ncpus} = $self->{MAXNCPUs};
@@ -483,10 +577,9 @@ sub AddFileToArchive
 }
 
 ## -----------------------------------------------------------------------------
-## VerifyOptionValues: verify directory and filename information given in the 
-## job options file
+## VerifyOptionValuesGTalign: verify pathname information for GTalign
 ##
-sub VerifyOptionValues 
+sub VerifyOptionValuesGTalign
 {
     my  $self = shift;
     my  $rerrmsg = shift;##ref to the error message string
@@ -525,6 +618,7 @@ sub VerifyOptionValues
                 $self->{cfgvar}->PathStrDb_PDB(), $self->{cfgvar}->PathStrDb_SCOP(),
                 $self->{cfgvar}->PathStrDb_ECOD(), $self->{cfgvar}->PathStrDb_SwissProt(),
                 $self->{cfgvar}->PathStrDb_Proteomes(), $self->{cfgvar}->PathStrDb_UniRef30(),
+                $self->{cfgvar}->PathStrDb_BFVD(),
                 $self->{cfgvar}->Exists('PATHSTRDB_PDB_SCOP_ECOD')? $self->{cfgvar}->GetValue('PATHSTRDB_PDB_SCOP_ECOD'): '',
                 $self->{cfgvar}->Exists('PATHSTRDB_PDB_SCOP_ECOD_sw_prot')? $self->{cfgvar}->GetValue('PATHSTRDB_PDB_SCOP_ECOD_sw_prot'): ''
             );
@@ -535,6 +629,7 @@ sub VerifyOptionValues
                 $self->{cfgvar}->Exists('STRDB_SwissProt_NAME')? $self->{cfgvar}->GetValue('STRDB_SwissProt_NAME'): '',
                 $self->{cfgvar}->Exists('STRDB_Proteomes_NAME')? $self->{cfgvar}->GetValue('STRDB_Proteomes_NAME'): '',
                 $self->{cfgvar}->Exists('STRDB_UniRef30_NAME')? $self->{cfgvar}->GetValue('STRDB_UniRef30_NAME'): '',
+                $self->{cfgvar}->Exists('STRDB_BFVD_NAME')? $self->{cfgvar}->GetValue('STRDB_BFVD_NAME'): '',
                 $self->{cfgvar}->Exists('STRDB_PDB_SCOP_ECOD_NAME')? $self->{cfgvar}->GetValue('STRDB_PDB_SCOP_ECOD_NAME'): '',
                 $self->{cfgvar}->Exists('STRDB_PDB_SCOP_ECOD_sw_prot_NAME')? $self->{cfgvar}->GetValue('STRDB_PDB_SCOP_ECOD_sw_prot_NAME'): ''
             );
@@ -545,6 +640,7 @@ sub VerifyOptionValues
                 $self->{cfgvar}->Exists('PATHSTRDBcache_SwissProt')? $self->{cfgvar}->GetValue('PATHSTRDBcache_SwissProt'): '',
                 $self->{cfgvar}->Exists('PATHSTRDBcache_Proteomes')? $self->{cfgvar}->GetValue('PATHSTRDBcache_Proteomes'): '',
                 $self->{cfgvar}->Exists('PATHSTRDBcache_UniRef30')? $self->{cfgvar}->GetValue('PATHSTRDBcache_UniRef30'): '',
+                $self->{cfgvar}->Exists('PATHSTRDBcache_BFVD')? $self->{cfgvar}->GetValue('PATHSTRDBcache_BFVD'): '',
                 $self->{cfgvar}->Exists('PATHSTRDBcache_PDB_SCOP_ECOD')? $self->{cfgvar}->GetValue('PATHSTRDBcache_PDB_SCOP_ECOD'): '',
                 $self->{cfgvar}->Exists('PATHSTRDBcache_PDB_SCOP_ECOD_sw_prot')? $self->{cfgvar}->GetValue('PATHSTRDBcache_PDB_SCOP_ECOD_sw_prot'): ''
             );
@@ -599,6 +695,130 @@ sub VerifyOptionValues
 }
 
 ## -----------------------------------------------------------------------------
+## VerifyOptionValuesGTcomplex: verify pathname information for GTcomplex
+##
+sub VerifyOptionValuesGTcomplex
+{
+    my  $self = shift;
+    my  $rerrmsg = shift;##ref to the error message string
+    my  $rhlerrmsg = shift;##ref to the h-l error message string
+
+    my  $mysubname = (caller(0))[3];
+    my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
+    my ($filename, $fullname);
+    my  $ret = 1;
+
+    return $ret if($self->{NORUN});
+
+    my $inpsize = 0;
+    $inpsize = (-s $self->{INPFILENAME}) if(-f $self->{INPFILENAME});
+    if($self->{MAXSZINPUT} < $inpsize) {
+        $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: ".
+            "Too large input file size: '$self->{INPFILENAME}': $inpsize\n";
+        $$rhlerrmsg = "Input file exceeds maximum allowed size.\n";
+        return 0;
+    }
+
+    unless($self->{options}->Exists($self->{optionkeys}->{gtcomplex_db})) {
+        $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: ".
+            "Option $self->{optionkeys}->{gtcomplex_db} not specified in the job options file.\n";
+        $$rhlerrmsg = "Structure database not specified.\n";
+        return 0;
+    }
+
+    $self->{optionvalues}->{$self->{optionkeys}->{gtcomplex_db}} = '';
+    $filename = $self->{options}->GetValue($self->{optionkeys}->{gtcomplex_db});
+
+    my @fnames = split(',', $filename);
+    my(@fullnamelist, @cachenamelist);
+    my @predetdbs = (
+        $self->{cfgvar}->PathStrDb_ASM()
+    );
+    my @predetdbnames = (
+        $self->{cfgvar}->Exists('STRDB_ASM_NAME')? $self->{cfgvar}->GetValue('STRDB_ASM_NAME'): ''
+    );
+    my @predetdbcachedirs = (
+        $self->{cfgvar}->Exists('PATHSTRDBcache_ASM')? $self->{cfgvar}->GetValue('PATHSTRDBcache_ASM'): ''
+    );
+
+    foreach $filename(@fnames) {
+        $fullname = '';
+
+        for(my $pi = 0; $pi <= $#predetdbs; $pi++) {
+            my $path = $predetdbs[$pi];
+            my $name = ($pi <= $#predetdbnames)? $predetdbnames[$pi]: '';
+            my $cachepath = ($pi <= $#predetdbcachedirs)? $predetdbcachedirs[$pi]: '';
+            next unless $path;
+            next unless $name eq $filename;
+            my @paths = split(',', $path);
+            my @filenamesplit = split(/\|/, $filename);
+            next unless $#paths == $#filenamesplit;
+            for(my $fi = 0; $fi <= $#paths; $fi++) {
+                my $tmpfname = File::Spec->catfile($paths[$fi], $filenamesplit[$fi]);
+                next unless -d $tmpfname;
+                $fullname .= ',' if $fullname;
+                $fullname .= $tmpfname;
+            }
+            next unless $fullname;
+            push @fullnamelist, $fullname;
+            push @cachenamelist, $cachepath if $cachepath;
+            last;
+        }
+
+        unless($fullname) {
+            my $text = "WARNING: Structure database not found: $filename\n";
+            $self->Warning($text, $text, 1);##no e-mail
+        }
+    }
+
+    if($#fullnamelist < 0) {
+        $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: ".
+          "All structure db(s) '${filename}' not found in local directories.\n";
+        $$rhlerrmsg = "Structure database(s) not found.\n";
+        return 0;
+    }
+
+    $self->{optionvalues}->{$self->{optionkeys}->{gtcomplex_db}} = join(',',@fullnamelist);
+
+    if($#fullnamelist == 0 && $#cachenamelist == 0 && length($cachenamelist[0]) > 0) {
+        $self->{gtcomplex_cacheopt} = "-c \"$cachenamelist[0]\"";
+    }
+
+
+    return $ret;
+}
+
+## -----------------------------------------------------------------------------
+## VerifyOptionValues: verify directory and filename information given in the 
+## job options file
+##
+sub VerifyOptionValues 
+{
+    my  $self = shift;
+    my  $rerrmsg = shift;##ref to the error message string
+    my  $rhlerrmsg = shift;##ref to the h-l error message string
+
+    my  $mysubname = (caller(0))[3];
+    my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
+    my  $ret = 1;
+
+    if($self->{METHOD} eq 'gtalign') {
+        $ret = $self->VerifyOptionValuesGTalign($rerrmsg, $rhlerrmsg);
+    }
+    elsif($self->{METHOD} eq 'gtcomplex') {
+        $ret = $self->VerifyOptionValuesGTcomplex($rerrmsg, $rhlerrmsg);
+    }
+    else {
+        $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: ".
+            "Unknown method: Options file unprocessed.\n";
+        $$rhlerrmsg = "Unknown method: Options file unprocessed.\n";
+        return 0;
+    }
+
+    return $ret;
+}
+
+## -----------------------------------------------------------------------------
 ## GenGTalignHPCqueryOptions: generate query-specific part of the HPC options 
 ## for GTalign
 ##
@@ -638,6 +858,9 @@ sub GenGTalignHPCqueryOptions
             }
         }
     }
+    ##NOTE: tolerance upon BioPython's failure:
+    push(@lens, $self->{gtalign_def_options}->{dev_queries_total_length_per_chunk}) if ($#lens < 0);
+    ##
     @lens = sort {$b <=> $a} @lens;
     $maxlen0 = $lens[0] if 0 <= $#lens;
     $maxlen1 = $lens[1] if 1 <= $#lens;
@@ -689,9 +912,65 @@ sub GenGTalignHPCqueryOptions
         return 0;
     }
 
+    $$rinfmsg = '';
     $$rinfmsg = "$npdb structure(s) in PDB format" if 0 < $npdb;
     $$rinfmsg .= '; ' if(0 < $npdb && 0 < $ncif);
-    $$rinfmsg = "$ncif structure(s) in mmCIF format" if 0 < $ncif;
+    $$rinfmsg .= "$ncif structure(s) in mmCIF format" if 0 < $ncif;
+    $$rinfmsg .= '.' if(0 < $npdb || 0 < $ncif);
+
+    return $ret;
+}
+
+## -----------------------------------------------------------------------------
+## GenGTcomplexHPCqueryOptions: generate query-specific part of the HPC options 
+## for GTcomplex
+##
+sub GenGTcomplexHPCqueryOptions
+{
+    my  $self = shift;
+    my  $rnqueries = shift;##ref to the number of queries
+    my  $rinfmsg = shift;##ref to an information message
+    my  $rerrmsg = shift;##ref to the error message string to be put in logs
+    my  $rhlerrmsg = shift;##ref to the h-l error message string
+
+    my  $mysubname = (caller(0))[3];
+    my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
+    my  $ret = 1;
+
+    unless(-f $self->{INPFILENAME}) {
+        $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: Input file not found: '$self->{INPFILENAME}'\n";
+        $$rhlerrmsg = "Input file not found.\n";
+        return 0;
+    }
+
+    my ($ncif, $npdb) = (0,0);
+    my $rexcif = qr/\.cif(?:\.gz)?$/;
+    my $rexpdb = qr/\.(?:pdb|ent)(?:\.gz)?$/;
+
+    if($self->{INPFILENAME} =~ /\.tar$/) {
+        my $flist = `$self->{TARPROG} -tf "$self->{INPFILENAME}"`;
+        ##no error check
+        foreach(split(/\n/, $flist)) {
+            $ncif++ if(/$rexcif/);
+            $npdb++ if(/$rexpdb/);
+        }
+    }
+    elsif($self->{INPFILENAME} =~ /$rexcif/) { $ncif++; }
+    elsif($self->{INPFILENAME} =~ /$rexpdb/) { $npdb++; }
+
+    $$rnqueries = $ncif + $npdb;
+
+    if($$rnqueries < 1) {
+        $$rerrmsg = $$rhlerrmsg = '' if $ret;
+        $$rerrmsg .= "ERROR: $self->{MYPROGNAME}: $mysubname: No queries found in the input.\n";
+        $$rhlerrmsg .= "No valid queries found. (Recognized extensions: .cif[.gz], .pdb[.gz], .ent[.gz])\n";
+        return 0;
+    }
+
+    $$rinfmsg = '';
+    $$rinfmsg = "$npdb structure(s) in PDB format" if 0 < $npdb;
+    $$rinfmsg .= '; ' if(0 < $npdb && 0 < $ncif);
+    $$rinfmsg .= "$ncif structure(s) in mmCIF format" if 0 < $ncif;
     $$rinfmsg .= '.' if(0 < $npdb || 0 < $ncif);
 
     return $ret;
@@ -712,7 +991,16 @@ sub PreprocessInput
     my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
     my  $ret = 1;
 
-    unless($self->GenGTalignHPCqueryOptions($rnqueries, $rinfmsg, $rerrmsg, $rhlerrmsg)) {
+    if($self->{METHOD} eq 'gtalign') {
+        $ret = $self->GenGTalignHPCqueryOptions($rnqueries, $rinfmsg, $rerrmsg, $rhlerrmsg);
+    }
+    elsif($self->{METHOD} eq 'gtcomplex') {
+        $ret = $self->GenGTcomplexHPCqueryOptions($rnqueries, $rinfmsg, $rerrmsg, $rhlerrmsg);
+    }
+    else {
+        $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: ".
+            "Unknown method: Input not preprocessed.\n";
+        $$rhlerrmsg = "Unknown method: Input not preprocessed.\n";
         return 0;
     }
 
@@ -874,6 +1162,140 @@ sub RunGTalign
     unless($command) {
         $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: No GTalign results produced for all queries.\n";
         $$rhlerrmsg = "No GTalign results produced for any of the queries.\n";
+        return 0;
+    }
+
+    return $ret;
+}
+
+## -----------------------------------------------------------------------------
+## RunGTcomplex: Run GTcomplex search
+##
+sub RunGTcomplex
+{
+    my  $self = shift;
+    my  $rnqueries = shift;##ref to the number of queries
+    my  $rinputs = shift;##ref to the hash of individual inputs
+    my  $rerrmsg = shift;##ref to the error message string to be put in logs
+    my  $rhlerrmsg = shift;##ref to the h-l error message string
+
+    my  $mysubname = (caller(0))[3];
+    my  $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
+    my  $preamb = "[ ${mysubname} ] ";
+    my  $outputpfx = File::Spec->catfile($self->{inpdirname},"$self->{inpbasename}__gtcomplex_out");
+    my  $outputsubdir = $outputpfx;
+    ##no. trials to launch gtcomplex; NOTE: may fail when two or more processes request resources at the same time:
+    my  $ntrials = 3;
+    my  $command = '';
+    my (@warnings, @resfiles);
+    my  $ret = 1;
+
+    my $configopts = '';
+    if($self->{cfgvar}->Exists('JOB_GPU_MEM')) {
+        my $valuemb = $self->{cfgvar}->GetValue('JOB_GPU_MEM') * 1024;
+        $configopts = " --dev-mem=${valuemb}" if $valuemb > 256;
+    }
+
+    ##if($self->{cfgvar}->Exists('JOB_NUM_CPUS')) {
+    ##    my $value = $self->{cfgvar}->GetValue('JOB_NUM_CPUS');
+    ##    $configopts .= " --cpu-threads-reading=${value}";
+    ##}
+    ## NOTE: $self->{ncpus} has already been validated!
+    $configopts .= " --cpu-threads-reading=$self->{ncpus}";
+
+    $command = "$self->{optionvalues}->{prog_gtcomplex_gtcomplex} -v ".
+            "--qrs=\"$self->{INPFILENAME}\" --rfs=\"".$self->{optionvalues}->{$self->{optionkeys}->{gtcomplex_db}}.
+            "\" $self->{gtcomplex_cacheopt} -o \"${outputsubdir}\" --outfmt=1 ${configopts} ".
+            "$self->{cmdline_arguments} >\"$self->{COMLOGFILENAME}\" 2>&1";
+
+    for(my $i=1;; $i++) {
+        print(STDERR GetTime()."${preamb} ${command}\n\n");
+        unless($self->ExecCommand($command)) {
+            do{ sleep(2); next} if $i < $ntrials;
+            $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: Unable to conduct a GTcomplex search.\n";
+            $$rhlerrmsg = "Unable to conduct a GTcomplex search. Please check your input and try later.\n";
+            return 0;
+        }
+        last;
+    }
+
+    ##extract warnings if any; no check of return code
+    $self->GetWarnings($self->{COMLOGFILENAME}, \@warnings);
+
+    if(0 <= $#warnings) {
+        my $lst = join("", @warnings);
+        my $text = "\nWarnings from the GTcomplex search:\n\n$lst\n\n";
+        $self->Warning($text, $text, 1);##no e-mail
+    }
+
+    ##associate gtcomplex results with particular queries
+    $command = '';
+
+    if($self->ReadFiles($outputsubdir, $self->{OUTEXT}, \@resfiles) <= 0) {
+        ;##no files found in directory
+    }
+
+    $$rnqueries = ($#resfiles + 1);
+
+    for(my $q = 0; $q <= $#resfiles; $q++) {
+        my $qnum = $q;
+        my $resfilename = $resfiles[$q];
+        ##skip queries with pending errors and which have not been searched for
+        next if(exists $$rinputs{"${qnum}_rcode"} && $$rinputs{"${qnum}_rcode"});
+
+        my $outfile = File::Spec->catfile($outputsubdir, $resfilename);
+
+        unless($resfilename && -f $outfile) {
+            $$rinputs{"${qnum}_rcode"} = 1;
+            $$rinputs{"${qnum}_error"} = "ERROR: $self->{MYPROGNAME}: $mysubname: GTcomplex results for query No.${qnum} not found: $outfile\n";
+            $$rinputs{"${qnum}_errhl"} = "GTcomplex results for query No.${qnum} not found.\n";
+            $self->Error($$rinputs{"${qnum}_error"}, $$rinputs{"${qnum}_errhl"}, 1);##no e-mail
+            next
+        }
+
+        my ($qryfulldesc, $qryfullname, $qrybasename, $qrylength, $qsec) = ('','','',0,0);
+
+        unless(open(F, $outfile)) {
+            $$rinputs{"${qnum}_rcode"} = 1;
+            $$rinputs{"${qnum}_error"} = "ERROR: $self->{MYPROGNAME}: $mysubname: Failed to open GTcomplex results for query No.${qnum}: $outfile\n";
+            $$rinputs{"${qnum}_errhl"} = "Failed to open GTcomplex results for query No.${qnum}.\n";
+            $self->Error($$rinputs{"${qnum}_error"}, $$rinputs{"${qnum}_errhl"}, 1);##no e-mail
+            next
+        }
+
+        while(<F>) {
+            next if /^\s*$/;
+            $qsec = 1 if /\s+"query":\s*{/;
+            next unless $qsec;
+            $qrylength = $1 if /^\s+"length":\s*(\d+),/;
+            $qryfulldesc = $1 if /^\s+"description":\s*"(.+)"/;
+            last if /^\s+"chain_list":\s*\[/;
+        }
+
+        close(F);
+
+        ##$qryfulldesc =~ s/\n+/ /g;
+        $qryfulldesc =~ s/\\//g;
+        $qryfullname = $qrybasename = $qryfulldesc;
+        my $chpos = index($qryfulldesc,' Chn:');
+        my $mpos = index($qryfulldesc,' (M:');
+        my $pos = (0 < $chpos && 0 < $mpos)? (($chpos < $mpos)? $chpos: $mpos): ((0 < $chpos)? $chpos: $mpos);
+        $qryfullname = substr($qryfulldesc, 0, $pos) if 0 < $pos;
+        $qrybasename = basename($qryfullname);
+
+        $$rinputs{"${qnum}_rcode"} = 0;
+        $$rinputs{"${qnum}_error"} = '';##error message
+        $$rinputs{"${qnum}_errhl"} = '';##high-level error message
+        $$rinputs{"${qnum}_descr"} = $qryfulldesc;
+        $$rinputs{"${qnum}_fname"} = $qryfullname;
+        $$rinputs{"${qnum}_bname"} = $qrybasename;
+        $$rinputs{"${qnum}_lengt"} = $qrylength;
+        $$rinputs{"${qnum}_outfl"} = $command = $outfile;
+    }
+
+    unless($command) {
+        $$rerrmsg = "ERROR: $self->{MYPROGNAME}: $mysubname: No GTcomplex results produced for all queries.\n";
+        $$rhlerrmsg = "No GTcomplex results produced for any of the queries.\n";
         return 0;
     }
 
@@ -1065,7 +1487,7 @@ sub Warning
     my $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
     return $self->Issue($msg, $hlerrmsg, $nosend,
         '',
-        "Warning from gtalign-ws ($self->{MYPROGNAME})");
+        "Warning from gtalign-ws ($self->{MYPROGNAME}: $self->{METHOD})");
 }
 
 ## Error: output an error message and optionally, send an email
@@ -1077,7 +1499,7 @@ sub Error
     my $class = ref($self) || die("ERROR: $mysubname: Should be called by object.");
     return $self->Issue($msg, $hlerrmsg, $nosend,
         "ERROR: Issue on the server's backend side: ",
-        "Error message from gtalign-ws ($self->{MYPROGNAME})");
+        "Error message from gtalign-ws ($self->{MYPROGNAME}: $self->{METHOD})");
 }
 
 ## Issue: output an issue message and send an email

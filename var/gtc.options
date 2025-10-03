@@ -1,0 +1,112 @@
+## GTcomplex command-line options
+##
+
+## Output control options:
+##
+# Report results down to this TM-score limit [0,1).     [0,1)
+# 0 implies all results are valid for report.
+-s=0.5
+
+# Include secondary TM-score, 2TM-score: TM-score       (On|Off)
+# calculated over matched secondary structures.
+# Default=On
+--2tm-score
+
+# 0: Sort results by the greater TM-score of the two;   [0-8]
+# 1: Sort by reference length-normalized TM-score;
+# 2: Sort by query length-normalized TM-score;
+# 3: Sort by the harmonic mean of the two TM-scores;
+# 4: Sort by RMSD.
+# When --2tm-score is present:
+# 5: Sort by the greater 2TM-score;
+# 6: Sort by reference length-normalized 2TM-score;
+# 7: Sort by query length-normalized 2TM-score.
+# 8: Sort by the harmonic mean of the 2TM-scores;
+--sort=0
+
+# Number of highest-scoring structures to list in       [1,10000]
+# the results for each query.
+--nhits=1000
+
+# Number of highest-scoring structure alignments        [1,10000]
+# and superpositions to output for each query.
+--nalns=1000
+
+# Limiting number of chain alignments to output         [0,10000]
+# (0 for no limit, unlimited).
+--nchns=1000
+
+# Remove deletion positions (gaps in query) from        (On|Off)
+# produced alignments. Default=Off
+#--no-deletions
+
+# Produce transformation matrices for reference         (On|Off)
+# structures instead of query(-ies). Default=On
+--referenced
+
+
+## Interpretation options:
+##
+# Consider and align both ATOM and HETATM residues.     (On|Off)
+# Default=On
+--hetatm
+
+## Similarity pre-screening options:
+##
+# Minimum provisional TM-score [0,1) for structure      [0,1)
+# pairs to proceed to further stages.
+# 0, all pairs are subject to further processing.
+--pre-score=0.4
+
+
+## Per-pair computation options:
+##
+# Include superposition search at the chain level.      (On|Off)
+# Default=Off
+#--add-chain-level-search
+
+# Speed up the GTcomplex alignment algorithm at the     [0-16]
+# expense of optimality (larger values => faster);
+# Accuracy most affected at these values: 0,1,4,7,10,12,16
+--speed=16
+
+
+## HPC options:
+## (should not be changed; provided here as limits)
+##
+# Maximum number of chains for query complexes.         [100,512]
+# Higher values increase memory usage and may limit
+# parallel execution.
+--dev-queries-max-chains=100
+
+# Maximum total length of queries processed as          [100,50000]
+# one chunk in parallel. Queries of length larger
+# than the specified length will be skipped. 
+# NOTE: Large values greatly reduce #structure pairs
+# processed in parallel.
+--dev-queries-total-length-per-chunk=4000
+
+# Maximum chain length of reference structures.         [100,65535]
+# Chains of length larger than this specified value
+# will be truncated.
+# NOTE: Large values greatly reduce #structure pairs
+# processed in parallel.
+--dev-max-length=4000
+
+# Minimum reference chain length.                       [3,32767]
+# Chains shorter than this value will be skipped.
+--dev-min-length=3
+
+
+
+
+
+
+
+## -------------------------------------------------------------------
+## GTalign-web's GTcomplex service options
+##
+
+## GTcomplex structure database
+gtcomplex_db = mmCIF_asm
+

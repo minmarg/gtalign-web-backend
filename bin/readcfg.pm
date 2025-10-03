@@ -44,8 +44,11 @@ sub new {
     $self->{PATHSTRDB_SwissProt} = '';
     $self->{PATHSTRDB_Proteomes} = '';
     $self->{PATHSTRDB_UniRef30} = '';
+    $self->{PATHSTRDB_BFVD} = '';
+    $self->{PATHSTRDB_ASM} = '';
 
     $self->{INSTALL_GTALIGN} = '';
+    $self->{INSTALL_GTCOMPLEX} = '';
 
     $self->{MAILADDRESSEE} = GetMailAddressee();
     $self->{MAILSENDER}  = GetMailSender();
@@ -81,8 +84,11 @@ sub PathStrDb_ECOD { my $self = shift; if (@_) { $self->{PATHSTRDB_ECOD} = shift
 sub PathStrDb_SwissProt { my $self = shift; if (@_) { $self->{PATHSTRDB_SwissProt} = shift } return $self->{PATHSTRDB_SwissProt}; }
 sub PathStrDb_Proteomes { my $self = shift; if (@_) { $self->{PATHSTRDB_Proteomes} = shift } return $self->{PATHSTRDB_Proteomes}; }
 sub PathStrDb_UniRef30 { my $self = shift; if (@_) { $self->{PATHSTRDB_UniRef30} = shift } return $self->{PATHSTRDB_UniRef30}; }
+sub PathStrDb_BFVD { my $self = shift; if (@_) { $self->{PATHSTRDB_BFVD} = shift } return $self->{PATHSTRDB_BFVD}; }
+sub PathStrDb_ASM { my $self = shift; if (@_) { $self->{PATHSTRDB_ASM} = shift } return $self->{PATHSTRDB_ASM}; }
 
 sub InstallDir_GTalign { my $self = shift; if (@_) { $self->{INSTALL_GTALIGN} = shift } return $self->{INSTALL_GTALIGN}; }
+sub InstallDir_GTcomplex { my $self = shift; if (@_) { $self->{INSTALL_GTCOMPLEX} = shift } return $self->{INSTALL_GTCOMPLEX}; }
 
 sub MailAddressee { my $self = shift; if (@_) { $self->{MAILADDRESSEE} = shift } return $self->{MAILADDRESSEE}; }
 sub MailSender  { my $self = shift; if (@_) { $self->{MAILSENDER} = shift }  return $self->{MAILSENDER}; }
