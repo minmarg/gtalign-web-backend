@@ -34,11 +34,13 @@ Helper script for superimposing 3D structures aligned by GTcomplex.
 Usage:
 $0 <Options>
 
-Options:
+Required options:
 
 --in <input>     Input file of GTcomplex results in JSON format. This file
                  should contain the "query" and "hit_record" sections from
                  a GTcomplex .json output file.
+
+Optional parameters:
 
 --status <file>  Name of the output status file of computation progress
                  messages.
